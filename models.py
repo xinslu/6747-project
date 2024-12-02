@@ -1,5 +1,5 @@
 import torch.nn as nn
-
+import torch
 from imagebind.models import imagebind_model
 import imagebind.data as data
 
@@ -85,12 +85,16 @@ class OpenCLIPWrapper(nn.Module):
         if modality == 'vision':
             modality = 'image'
         elif modality == 'text':
-            X = tokenizer.tokenize(X)
+            X = tokenizer.tokenize(X).to(self.model.device)
 
-        features = self.model.forward(**{modality: X})
+        # Create dummy inputs for the unused modality
         if modality == 'image':
+            dummy_text = tokenizer.tokenize(["dummy"]).to(self.model.device)
+            features = self.model(X, dummy_text)
             return features[0]
         elif modality == 'text':
+            dummy_image = torch.zeros((1, 3, 224, 224)).to(self.model.device)
+            features = self.model(dummy_image, X)
             return features[1]
         else:
             raise NotImplementedError()
