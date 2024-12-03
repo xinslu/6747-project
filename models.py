@@ -17,14 +17,14 @@ def load_model(model_flag, device):
         model = AudioCLIPWrapper(AudioCLIP(pretrained=f'bpe/AudioCLIP-Partial-Training.pt'))
     elif model_flag == 'openclip':
         m, _, p = open_clip.create_model_and_transforms('ViT-H-14', pretrained='laion2b_s32b_b79k', cache_dir='bpe/')
-        model = OpenCLIPWrapper(m, p)
+        model = OpenCLIPWrapper(m, p, device)
     elif model_flag == 'openclip_rn50':
         m, _, p = open_clip.create_model_and_transforms('RN50', pretrained='openai', cache_dir='bpe/')
-        model = OpenCLIPWrapper(m, p)
+        model = OpenCLIPWrapper(m, p, device)
     elif 'openclip' in model_flag:
         _, backbone, pretrained = model_flag.split(';')
         m, _, p = open_clip.create_model_and_transforms(backbone, pretrained=pretrained, cache_dir='bpe/')
-        model = OpenCLIPWrapper(m, p)
+        model = OpenCLIPWrapper(m, p, device)
     else:
         raise NotImplementedError()
 
@@ -75,25 +75,26 @@ class AudioCLIPWrapper(nn.Module):
         
 
 class OpenCLIPWrapper(nn.Module):
-    def __init__(self, model, preprocess):
+    def __init__(self, model, preprocess, device):
         super(OpenCLIPWrapper, self).__init__()
         self.model = model
         self.preprocess = preprocess
         self.flag = 'openclip'
+        self.device = device
     
     def forward(self, X, modality, normalize=True):
         if modality == 'vision':
             modality = 'image'
         elif modality == 'text':
-            X = tokenizer.tokenize(X).to(self.model.device)
+            X = tokenizer.tokenize(X).to(self.device)
 
         # Create dummy inputs for the unused modality
         if modality == 'image':
-            dummy_text = tokenizer.tokenize(["dummy"]).to(self.model.device)
+            dummy_text = tokenizer.tokenize(["dummy"]).to(self.device)
             features = self.model(X, dummy_text)
             return features[0]
         elif modality == 'text':
-            dummy_image = torch.zeros((1, 3, 224, 224)).to(self.model.device)
+            dummy_image = torch.zeros((1, 3, 224, 224)).to(self.device)
             features = self.model(dummy_image, X)
             return features[1]
         else:
